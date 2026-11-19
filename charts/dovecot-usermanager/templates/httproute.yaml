@@ -1,0 +1,31 @@
+{{- if eq .Values.ingress.type "gateway-api" }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "dovecot-usermanager.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dovecot-usermanager.labels" . | nindent 4 }}
+  {{- with .Values.ingress.gatewayApi.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    # group/kind/weight spelled out: they are the server-side defaults, and
+    # omitting them leaves Argo CD permanently OutOfSync.
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ .Values.ingress.gatewayApi.gatewayName }}
+      namespace: {{ .Values.ingress.gatewayApi.gatewayNamespace | default .Release.Namespace }}
+      sectionName: {{ .Values.ingress.gatewayApi.sectionName }}
+  hostnames:
+    - {{ required "ingress.host is required" .Values.ingress.host | quote }}
+  rules:
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: {{ include "dovecot-usermanager.fullname" . }}
+          port: {{ .Values.service.port }}
+          weight: 1
+{{- end }}

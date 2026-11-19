@@ -1,0 +1,11 @@
+apiVersion: v2
+name: dovecot-usermanager
+description: Web UI to manage the users (passwd-file Secret) of a Dovecot deployment, OIDC login only.
+type: application
+version: 0.0.0
+appVersion: 0.0.0
+home: https://github.com/TaliaMarine/dovecot-usermanager
+sources:
+  - https://github.com/TaliaMarine/dovecot-usermanager
+maintainers:
+  - name: Guy Renard

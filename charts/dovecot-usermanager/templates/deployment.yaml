@@ -1,0 +1,83 @@
+{{- $_ := required "oidc.issuerUrl is required" .Values.oidc.issuerUrl -}}
+{{- $_ := required "oidc.clientId is required" .Values.oidc.clientId -}}
+{{- $_ := required "oidc.redirectUrl is required" .Values.oidc.redirectUrl -}}
+{{- $_ := required "sessionKey.secretRef.name is required (Secret holding a >= 32 char key)" .Values.sessionKey.secretRef.name -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dovecot-usermanager.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dovecot-usermanager.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "dovecot-usermanager.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "dovecot-usermanager.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "dovecot-usermanager.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: usermanager
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OIDC_ISSUER_URL
+              value: {{ .Values.oidc.issuerUrl | quote }}
+            - name: OIDC_CLIENT_ID
+              value: {{ .Values.oidc.clientId | quote }}
+            - name: OIDC_REDIRECT_URL
+              value: {{ .Values.oidc.redirectUrl | quote }}
+            - name: ADMIN_GROUP
+              value: {{ .Values.oidc.adminGroup | quote }}
+            - name: SESSION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.sessionKey.secretRef.name }}
+                  key: {{ .Values.sessionKey.secretRef.key | default "key" }}
+            - name: USERS_SECRET_NAME
+              value: {{ .Values.dovecot.usersSecretName | quote }}
+            - name: USERS_SECRET_KEY
+              value: {{ .Values.dovecot.usersSecretKey | quote }}
+            - name: DOVECOT_DEPLOYMENT
+              value: {{ .Values.dovecot.deploymentName | quote }}
+            - name: PASSWORD_SCHEME
+              value: {{ .Values.dovecot.passwordScheme | quote }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

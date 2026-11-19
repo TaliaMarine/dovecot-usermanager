@@ -1,0 +1,71 @@
+replicaCount: 1 # read-modify-write on the Secret is serialized in-process; keep one replica
+
+image:
+  repository: ghcr.io/taliamarine/dovecot-usermanager
+  tag: "" # defaults to Chart.appVersion
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi # password hashing (argon2id) briefly needs ~20MiB
+
+podAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# OIDC: Authorization Code + PKCE, public client (no secret).
+oidc:
+  issuerUrl: ""    # e.g. https://authentik.tusca.be/application/o/dovecot-usermanager/
+  clientId: ""
+  redirectUrl: ""  # https://<host>/api/auth/callback
+  adminGroup: homelab-admins # must be in the ID token "groups" claim
+
+# Key that encrypts the session cookies (>= 32 chars). Reference an existing
+# Secret (e.g. made by kubernetes-secret-generator); the chart never generates
+# it because `lookup` does not work under `helm template` (Argo CD).
+sessionKey:
+  secretRef:
+    name: ""
+    key: key
+
+# What the app manages (all in the release namespace).
+dovecot:
+  usersSecretName: dovecot-users
+  usersSecretKey: passwd
+  deploymentName: dovecot
+  passwordScheme: SHA512-CRYPT # or ARGON2ID
+
+ingress:
+  type: gateway-api # gateway-api | none
+  host: ""
+  gatewayApi:
+    gatewayName: default-gateway
+    gatewayNamespace: envoy-gateway-system
+    sectionName: https
+    annotations:
+      argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+
+networkPolicy:
+  enabled: false

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommitTypeAll(chore)",
+    ":semanticCommitScope(deps)"
+  ],
+  "schedule": ["before 6am on monday"],
+  "timezone": "Europe/Brussels",
+  "enabledManagers": ["gomod", "npm", "dockerfile", "github-actions"],
+  "postUpdateOptions": ["gomodTidy"],
+  "packageRules": [
+    {
+      "description": "Group non-major updates per ecosystem; automerge patch/minor and digest bumps once CI is green",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
+      "groupName": "non-major dependencies",
+      "groupSlug": "non-major",
+      "automerge": true
+    },
+    {
+      "description": "Keep the Go toolchain image and go.mod directive together, never automerge",
+      "matchDatasources": ["docker", "golang-version"],
+      "matchPackageNames": ["golang"],
+      "groupName": "go toolchain",
+      "automerge": false
+    },
+    {
+      "description": "Majors always need a human",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "dependencyDashboardApproval": false
+    }
+  ]
+}
